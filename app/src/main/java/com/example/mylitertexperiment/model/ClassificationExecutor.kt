@@ -63,7 +63,9 @@ class ClassificationExecutor(val context: Context) : BaseModelExecutor<Bitmap, L
             }
             val maxIdx = output.indices.maxByOrNull { output[it] } ?: -1
             val confidence = if (maxIdx >= 0) output[maxIdx] else 0f
-            val label = labels[maxIdx+1] // or labels[maxIdx + 1] if off by one
+            // The label list already contains the "background" entry at index 0,
+            // so the model output index maps directly to the label index.
+            val label = if (maxIdx in labels.indices) labels[maxIdx] else ""
             val detected = DetectedObject(label, confidence, Rect(0, 0, input.width, input.height))
             _outputFlow.emit(listOf(detected))
         }
@@ -77,9 +79,13 @@ class ClassificationExecutor(val context: Context) : BaseModelExecutor<Bitmap, L
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
         for (i in pixels.indices) {
             val pixel = pixels[i]
-            floatArray[i * 3 + 0] = ((pixel shr 16 and 0xFF) / 255.0f)
-            floatArray[i * 3 + 1] = ((pixel shr 8 and 0xFF) / 255.0f)
-            floatArray[i * 3 + 2] = ((pixel and 0xFF) / 255.0f)
+            val r = (pixel shr 16 and 0xFF).toFloat()
+            val g = (pixel shr 8 and 0xFF).toFloat()
+            val b = (pixel and 0xFF).toFloat()
+            // MobileNetV3 expects values in the [-1,1] range.
+            floatArray[i * 3 + 0] = (r - 127.5f) / 127.5f
+            floatArray[i * 3 + 1] = (g - 127.5f) / 127.5f
+            floatArray[i * 3 + 2] = (b - 127.5f) / 127.5f
         }
         return floatArray
     }
