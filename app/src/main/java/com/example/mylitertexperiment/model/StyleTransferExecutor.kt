@@ -37,10 +37,22 @@ class StyleTransferExecutor(context: Context) : BaseModelExecutor<Bitmap, Bitmap
             inputBuffers[0].writeFloat(floatArray)
 
             // Run inference
-            compiledModel.run(inputBuffers, outputBuffers)
+            try {
+                compiledModel.run(inputBuffers, outputBuffers)
+            } catch (e: Exception) {
+                android.util.Log.e("StyleTransferExecutor", "Exception during model run: ${e.message}")
+                _errorFlow.emit("Run error: ${e.message}")
+                return@withContext
+            }
 
             // Postprocess: convert output float array to Bitmap
-            val output = outputBuffers[0].readFloat()
+            val output = try {
+                outputBuffers[0].readFloat()
+            } catch (e: Exception) {
+                android.util.Log.e("StyleTransferExecutor", "Failed to read output: ${e.message}")
+                _errorFlow.emit("Output read error: ${e.message}")
+                return@withContext
+            }
             val styledBitmap = floatArrayToBitmap(output, inputSize, inputSize)
             _outputFlow.emit(styledBitmap)
         }

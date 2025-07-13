@@ -31,10 +31,22 @@ class OCRExecutor(context: Context) : BaseModelExecutor<Bitmap, String>() {
             inputBuffers[0].writeFloat(floatArray)
 
             // Run inference
-            compiledModel.run(inputBuffers, outputBuffers)
+            try {
+                compiledModel.run(inputBuffers, outputBuffers)
+            } catch (e: Exception) {
+                android.util.Log.e("OCRExecutor", "Exception during model run: ${e.message}")
+                _errorFlow.emit("Run error: ${e.message}")
+                return@withContext
+            }
 
             // Postprocess: decode output float array to string (model dependent)
-            val output = outputBuffers[0].readFloat()
+            val output = try {
+                outputBuffers[0].readFloat()
+            } catch (e: Exception) {
+                android.util.Log.e("OCRExecutor", "Failed to read output: ${e.message}")
+                _errorFlow.emit("Output read error: ${e.message}")
+                return@withContext
+            }
             val ocrText = decodeOcrOutput(output)
             _outputFlow.emit(ocrText)
         }

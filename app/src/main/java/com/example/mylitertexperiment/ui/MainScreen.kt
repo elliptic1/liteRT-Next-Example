@@ -49,6 +49,7 @@ fun MainScreen(viewModel: MainViewModel, context: Context, lifecycleOwner: Lifec
     }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorFlow.collectAsState(initial = "")
 
     LaunchedEffect(Unit) {
         val granted = ContextCompat.checkSelfPermission(
@@ -75,6 +76,13 @@ fun MainScreen(viewModel: MainViewModel, context: Context, lifecycleOwner: Lifec
             DrawStyleFrameOverlay(uiState.styledFrame)
             DrawBoxOverlay(uiState.detectedObjects)
             DrawOcrOverlay(uiState.ocrText)
+            if (errorMessage.isNotBlank()) {
+                Text(
+                    text = errorMessage,
+                    color = Color.Red,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
         }
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
