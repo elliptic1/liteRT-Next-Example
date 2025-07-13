@@ -16,7 +16,12 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import android.util.Log
 
-class ModelRepository(context: Context) {
+class ModelRepository(
+    context: Context,
+    private val classificationExecutor: ClassificationExecutor = ClassificationExecutor(context),
+    private val styleTransferExecutor: StyleTransferExecutor = StyleTransferExecutor(context),
+    private val ocrExecutor: OCRExecutor = OCRExecutor(context)
+) {
     // Camera frame stream
     val cameraFrameFlow = MutableSharedFlow<Bitmap>()
     // Style transfer output
@@ -28,10 +33,9 @@ class ModelRepository(context: Context) {
     // Speech command
     val speechCommandState = MutableStateFlow("")
 
-    // Model executors (pass context for asset/model loading)
-    private val classificationExecutor = ClassificationExecutor(context)
-    private val styleTransferExecutor = StyleTransferExecutor(context)
-//    private val ocrExecutor = OCRExecutor(context)
+
+    // Aggregated error stream
+    val errorFlow = MutableSharedFlow<String>()
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -64,9 +68,24 @@ class ModelRepository(context: Context) {
                 styledFrameFlow.emit(result)
             }
         }
+        scope.launch {
+            classificationExecutor.errorFlow.collect { error ->
+                errorFlow.emit(error)
+            }
+        }
+        scope.launch {
+            styleTransferExecutor.errorFlow.collect { error ->
+                errorFlow.emit(error)
+            }
+        }
 //        scope.launch {
 //            ocrExecutor.outputFlow.collect { result ->
 //                ocrFlow.emit(result)
+//            }
+//        }
+//        scope.launch {
+//            ocrExecutor.errorFlow.collect { error ->
+//                errorFlow.emit(error)
 //            }
 //        }
         // TODO: Load LiteRT Next models in each executor

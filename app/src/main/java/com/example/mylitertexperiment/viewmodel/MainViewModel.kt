@@ -13,6 +13,7 @@ class MainViewModel(
     context: Context,
 ) : ViewModel() {
     private val repository: ModelRepository = ModelRepository(context)
+    val errorFlow: SharedFlow<String> = repository.errorFlow
     val uiState: StateFlow<ViewState> = combine(
         repository.cameraFrameFlow,
         repository.styledFrameFlow,

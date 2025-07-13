@@ -34,10 +34,22 @@ class SpeechToTextExecutor(context: Context) : BaseModelExecutor<ByteArray, Stri
             inputBuffers[0].writeFloat(floatArray)
 
             // Run inference
-            compiledModel.run(inputBuffers, outputBuffers)
+            try {
+                compiledModel.run(inputBuffers, outputBuffers)
+            } catch (e: Exception) {
+                android.util.Log.e("SpeechToTextExecutor", "Exception during model run: ${e.message}")
+                _errorFlow.emit("Run error: ${e.message}")
+                return@withContext
+            }
 
             // Postprocess: decode output float array to string (model dependent)
-            val output = outputBuffers[0].readFloat()
+            val output = try {
+                outputBuffers[0].readFloat()
+            } catch (e: Exception) {
+                android.util.Log.e("SpeechToTextExecutor", "Failed to read output: ${e.message}")
+                _errorFlow.emit("Output read error: ${e.message}")
+                return@withContext
+            }
             val speechText = decodeSpeechOutput(output)
             _outputFlow.emit(speechText)
         }

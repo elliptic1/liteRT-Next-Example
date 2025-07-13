@@ -28,6 +28,7 @@ class ClassificationExecutor(val context: Context) : BaseModelExecutor<Bitmap, L
             android.util.Log.d("ClassificationExecutor", "Output buffer initial float array size: ${testOutput.size}")
         } catch (e: Exception) {
             android.util.Log.e("ClassificationExecutor", "Error reading output buffer size after creation: ${e.message}")
+            _errorFlow.emit("Init error: ${e.message}")
         }
     }
     private val inputSize = 224 // MobileNetV3 default
@@ -47,15 +48,22 @@ class ClassificationExecutor(val context: Context) : BaseModelExecutor<Bitmap, L
             inputBuffers[0].writeFloat(floatArray)
 
             // Run inference with try/catch
-            try {
-                compiledModel.run(inputBuffers, outputBuffers)
-            } catch (e: Exception) {
-                android.util.Log.e("ClassificationExecutor", "Exception during model run: ${e.message}")
-                return@withContext
-            }
+        try {
+            compiledModel.run(inputBuffers, outputBuffers)
+        } catch (e: Exception) {
+            android.util.Log.e("ClassificationExecutor", "Exception during model run: ${e.message}")
+            _errorFlow.emit("Run error: ${e.message}")
+            return@withContext
+        }
 
             // Postprocess: get top-1 label and confidence
-            val output = outputBuffers[0].readFloat()
+            val output = try {
+                outputBuffers[0].readFloat()
+            } catch (e: Exception) {
+                android.util.Log.e("ClassificationExecutor", "Failed to read output: ${e.message}")
+                _errorFlow.emit("Output read error: ${e.message}")
+                return@withContext
+            }
             android.util.Log.d("ClassificationExecutor", "Output float array size: ${output.size}")
             if (output.size != numClasses) {
                 android.util.Log.e("ClassificationExecutor", "Output array size mismatch! Expected: $numClasses, Actual: ${output.size}")
